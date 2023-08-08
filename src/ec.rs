@@ -17,7 +17,7 @@ impl EllipticCurve {
                 "" => continue,
                 "1" => {
                     gen = gen.double(self.p.clone(), self.a.clone());
-                    gen = gen.plus(&self.gen, self.p.clone(),self.a.clone());
+                    gen = gen.plus(&self.gen, self.p.clone(), self.a.clone());
                 }
                 "0" => {
                     gen = gen.double(self.p.clone(), self.a.clone());
@@ -27,14 +27,14 @@ impl EllipticCurve {
         }
         gen
     }
-    pub fn check_sum(&self,point:Point) -> bool{
+    pub fn check_sum(&self, point: Point) -> bool {
         match point {
             Point::Exact(x, y) => {
                 let r = (x.pow(3) + (&self.a * &x) + &self.b) % &self.p;
                 let l = (y.pow(2)) % &self.p;
                 r == l
-            },
-            _ => true
+            }
+            _ => true,
         }
     }
 }
@@ -48,12 +48,16 @@ impl Point {
     pub fn plus(&self, other: &Self, prime: BigInt, a: BigInt) -> Self {
         match (self, other) {
             (Point::Exact(sx, sy), Point::Exact(ox, oy)) => {
-                if sx == ox && sy != oy{
+                if sx == ox && sy != oy {
                     Point::Infinity
                 } else if sx == ox {
                     self.double(prime, a)
-                }else {
-                    let phi = Point::div_modulo(abs_modulo(sy - oy, &prime), abs_modulo(sx - ox, &prime), prime.clone());
+                } else {
+                    let phi = Point::div_modulo(
+                        abs_modulo(sy - oy, &prime),
+                        abs_modulo(sx - ox, &prime),
+                        prime.clone(),
+                    );
                     let x = abs_modulo(phi.pow(2) - sx - ox, &prime);
                     let y = abs_modulo(phi * (sx - &x) - sy, &prime);
                     Point::Exact(x, y)
@@ -67,7 +71,11 @@ impl Point {
     pub fn double(&self, prime: BigInt, a: BigInt) -> Self {
         match self {
             Point::Exact(sx, sy) => {
-                let phi = Point::div_modulo(abs_modulo(3 * sx.pow(2) + a, &prime), abs_modulo(2 * sy, &prime), prime.clone());
+                let phi = Point::div_modulo(
+                    abs_modulo(3 * sx.pow(2) + a, &prime),
+                    abs_modulo(2 * sy, &prime),
+                    prime.clone(),
+                );
                 let x = abs_modulo(phi.pow(2) - sx - sx, &prime);
                 let y = abs_modulo(phi * (sx - &x) - sy, &prime);
                 Point::Exact(x, y)
@@ -104,10 +112,10 @@ impl Point {
     }
 }
 
-fn abs_modulo(num: BigInt, prime: &BigInt) -> BigInt{
+fn abs_modulo(num: BigInt, prime: &BigInt) -> BigInt {
     if &num % prime < BigInt::from(0) {
         (num % prime) + prime
-    }else {
+    } else {
         num % prime
     }
 }
