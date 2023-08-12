@@ -1,4 +1,5 @@
-use num_bigint::{BigInt, ToBigInt};
+use num_bigint::BigInt;
+use std::fmt::Display;
 
 pub struct EllipticCurve {
     pub a: BigInt,
@@ -6,26 +7,10 @@ pub struct EllipticCurve {
     pub gen: Point,
     pub n: BigInt,
     pub p: BigInt,
-    pub d: BigInt,
 }
 impl EllipticCurve {
-    pub fn calc_dP(&self) -> Point {
-        let mut gen = Point::Infinity;
-        let bits = self.d.to_str_radix(2);
-        for b in bits.split("").into_iter() {
-            match b {
-                "" => continue,
-                "1" => {
-                    gen = gen.double(self.p.clone(), self.a.clone());
-                    gen = gen.plus(&self.gen, self.p.clone(), self.a.clone());
-                }
-                "0" => {
-                    gen = gen.double(self.p.clone(), self.a.clone());
-                }
-                _ => panic!(""),
-            }
-        }
-        gen
+    pub fn create_public(&self, private: BigInt) -> Point{
+        self.gen.calc_dP(private, self.p.clone(), self.a.clone())
     }
     pub fn check_sum(&self, point: Point) -> bool {
         match point {
@@ -39,13 +24,42 @@ impl EllipticCurve {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,PartialEq,Eq)]
 pub enum Point {
     Exact(BigInt, BigInt),
     Infinity,
 }
+impl Display for Point {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Point::Exact(x, y) => {
+                write!(f, "{{x:{},y:{}}}", x, y)
+            }
+            Point::Infinity => write!(f, "Infinity"),
+        }
+    }
+}
+
 impl Point {
-    pub fn plus(&self, other: &Self, prime: BigInt, a: BigInt) -> Self {
+    pub fn calc_dP(&self,d:BigInt,prime: BigInt,a: BigInt) -> Self {
+        let mut gen = Point::Infinity;
+        let bits = d.to_str_radix(2);
+        for b in bits.split("").into_iter() {
+            match b {
+                "" => continue,
+                "1" => {
+                    gen = gen.double(&prime, &a);
+                    gen = gen.plus(self, &prime, &a);
+                }
+                "0" => {
+                    gen = gen.double(&prime, &a);
+                }
+                _ => panic!(""),
+            }
+        }
+        gen
+    }
+    pub fn plus(&self, other: &Self, prime: &BigInt, a: &BigInt) -> Self {
         match (self, other) {
             (Point::Exact(sx, sy), Point::Exact(ox, oy)) => {
                 if sx == ox && sy != oy {
@@ -54,12 +68,12 @@ impl Point {
                     self.double(prime, a)
                 } else {
                     let phi = Point::div_modulo(
-                        abs_modulo(sy - oy, &prime),
-                        abs_modulo(sx - ox, &prime),
+                        abs_modulo(sy - oy, prime),
+                        abs_modulo(sx - ox, prime),
                         prime.clone(),
                     );
-                    let x = abs_modulo(phi.pow(2) - sx - ox, &prime);
-                    let y = abs_modulo(phi * (sx - &x) - sy, &prime);
+                    let x = abs_modulo(phi.pow(2) - sx - ox, prime);
+                    let y = abs_modulo(phi * (sx - &x) - sy, prime);
                     Point::Exact(x, y)
                 }
             }
@@ -68,16 +82,16 @@ impl Point {
             (Point::Infinity, Point::Infinity) => Point::Infinity,
         }
     }
-    pub fn double(&self, prime: BigInt, a: BigInt) -> Self {
+    pub fn double(&self, prime: &BigInt, a: &BigInt) -> Self {
         match self {
             Point::Exact(sx, sy) => {
                 let phi = Point::div_modulo(
-                    abs_modulo(3 * sx.pow(2) + a, &prime),
-                    abs_modulo(2 * sy, &prime),
+                    abs_modulo(3 * sx.pow(2) + a, prime),
+                    abs_modulo(2 * sy, prime),
                     prime.clone(),
                 );
-                let x = abs_modulo(phi.pow(2) - sx - sx, &prime);
-                let y = abs_modulo(phi * (sx - &x) - sy, &prime);
+                let x = abs_modulo(phi.pow(2) - sx - sx, prime);
+                let y = abs_modulo(phi * (sx - &x) - sy, prime);
                 Point::Exact(x, y)
             }
             Point::Infinity => Point::Infinity,
